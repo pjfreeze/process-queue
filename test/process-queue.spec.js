@@ -52,13 +52,28 @@ describe('ProcessQueue', () => {
 
     it('should continue processing items after encountering an error', (done) => {
       const items = [1, 2, 3];
+      const processFn = sinon.spy(function (item) {
+        if (item == items[0]) throw new Error();
+      });
+      const onError = sinon.spy();
+      const onEmpty = function () {
+        assert(processFn.callCount === items.length);
+        assert(onError.callCount === 1);
+        done();
+      };
+
+      const processQueue = new ProcessQueue(processFn, items, { onEmpty, onError, autostart: true });
+    });
+
+    it('should keep the stats object up-to-date', (done) => {
+      const items = [1, 2, 3];
       const processFn = function (item) {
         if (item == items[0]) throw new Error();
       };
       const onError = sinon.spy();
       const onEmpty = function () {
-        assert(onError.callCount === 1);
-        assert(processQueue.stats.processed === items.length - 1);
+        assert(processQueue.stats.processed === 2);
+        assert(processQueue.stats.errored === 1);
         done();
       };
 

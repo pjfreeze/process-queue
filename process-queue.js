@@ -10,10 +10,9 @@
   const noop = function () {};
   const DEFAULT_CONCURRENT = 5;
   const DEFAULT_DELAY = 0; // Using 0 to prevent locking up a/the thread
-  const DEFAULT_PROMISE = Promise; // Using 0 to prevent locking up a/the thread
+  const DEFAULT_PROMISE = Promise; // Using native promises
 
   /**
-   * @class ProcessQueue
    * @classdesc
    * Iterate through provided items. Make it asynchronous by returning a promise.
    * Make it synchronous by limiting concurrency.
@@ -44,22 +43,30 @@
       this.consumers = 0;
       this.running = false;
 
-      this.stats = {
-        processed: 0,
-        remaining: 0,
-        errors: 0,
-      };
-
-      Object.defineProperty(this.stats, 'remaining', {
-        get: () => this.queue.length,
-      });
-
       this.options = {};
       this.options.concurrent = options.concurrent || DEFAULT_CONCURRENT;
       this.options.delay = options.delay || DEFAULT_DELAY;
       this.options.onEmpty = options.onEmpty || noop;
       this.options.onError = options.onError || noop;
       this.options.Promise = options.Promise || DEFAULT_PROMISE;
+
+      this.stats = {
+        completed: 0,
+        errored: 0,
+        processed: 0,
+        remaining: 0,
+        total: 0,
+      };
+
+      Object.defineProperty(this.stats, 'completed', {
+        get: () => this.stats.processed + this.stats.errored,
+      });
+      Object.defineProperty(this.stats, 'remaining', {
+        get: () => this.queue.length + this.consumers,
+      });
+      Object.defineProperty(this.stats, 'total', {
+        get: () => this.stats.remaining + this.stats.completed,
+      });
 
       if (options.autostart) {
         this.start();
@@ -132,12 +139,10 @@
         const item = this.queue.shift();
 
         // Ensure that "tick" is only called once by wrapping it in a conditional
-        const proceed = () => {
+        const proceed = (wasError) => {
           if (!proceed.called) {
             proceed.called = true;
-            // Remove this consumer now that it has completed
-            this.consumers -= 1;
-            this.tick();
+            this.tick(wasError);
           }
         };
         proceed.called = false;
@@ -145,24 +150,21 @@
         // Call the provided "processFn" function, determine if it should be
         // handled asynchronously or synchronously by checking for a Promise
         const handle = () => {
-          let returned = null;
+          let returned;
 
           try {
             returned = this.processFn(item);
-            this.stats.processed += 1;
           } catch (error) {
             this.options.onError(error, item);
-            this.stats.errors += 1;
-            return proceed();
+            return proceed(true);
           }
 
           if (returned instanceof this.options.Promise) {
             returned
-              .then(proceed)
+              .then(proceed.bind(null, false))
               .catch((error) => {
                 this.options.onError(error, item);
-                this.stats.errors += 1;
-                proceed();
+                proceed(true);
               });
           } else {
             proceed();
@@ -178,7 +180,14 @@
      * Handles determination of when to call "onEmpty" handler as well as when
      * to continue consuming the queue.
      */
-    tick() {
+    tick(wasError) {
+      if (wasError) {
+        this.stats.errored += 1;
+      } else {
+        this.stats.processed += 1;
+      }
+      this.consumers -= 1;
+
       // If there are no consumers and nothing in the queue, call "onEmpty"
       if (this.queue.length === 0 && this.consumers === 0) {
         this.options.onEmpty();
