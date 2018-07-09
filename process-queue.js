@@ -12,6 +12,10 @@
   const DEFAULT_DELAY = 0; // Using 0 to prevent locking up a/the thread
   const DEFAULT_PROMISE = Promise; // Using native promises
 
+  const setProperty = (obj, property, getter) => {
+    Object.defineProperty(obj, property, { get: getter });
+  };
+
   /**
    * @classdesc
    * Iterate through provided items. Make it asynchronous by returning a promise.
@@ -25,12 +29,12 @@
      * @param {Function} processFn - function that will process each item
      * @param {Array} [queue=[]] - may contain any type, items processed with processFn
      * @param {Object} [options={}]
-     * @param {Boolean} [options.autostart] - autostart on construction
+     * @param {Boolean} [options.autostart=false] - autostart on construction
      * @param {Number} [options.concurrent=5] - maximum number of concurrent consumers
      * @param {Number} [options.delay=0] - delay in milliseconds before each tick
-     * @param {Function} [options.onEmpty=noop] - callback for the queue being empty
-     * @param {Function} [options.onError=noop] - callback for an error encountered during processing
-     * @param {Function} [options.Promise=Promise] - optionally specify the promise constructor used
+     * @param {Function} [options.onEmpty] - callback for the queue being empty
+     * @param {Function} [options.onError] - callback for an error encountered during processing
+     * @param {Function} [options.Promise] - optionally specify the promise constructor used
      *
      * @return {ProcessQueue}
      */
@@ -58,15 +62,9 @@
         total: 0,
       };
 
-      Object.defineProperty(this.stats, 'completed', {
-        get: () => this.stats.processed + this.stats.errored,
-      });
-      Object.defineProperty(this.stats, 'remaining', {
-        get: () => this.queue.length + this.consumers,
-      });
-      Object.defineProperty(this.stats, 'total', {
-        get: () => this.stats.remaining + this.stats.completed,
-      });
+      setProperty(this.stats, 'completed', () => this.stats.processed + this.stats.errored);
+      setProperty(this.stats, 'remaining', () => this.queue.length + this.consumers);
+      setProperty(this.stats, 'total', () => this.stats.remaining + this.stats.completed);
 
       if (options.autostart) {
         this.start();
