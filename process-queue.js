@@ -1,16 +1,17 @@
-/**
- * ProcessQueue
+/* ProcessQueue
  * https://github.com/pjfreeze/process-queue
  *
  * This is free and unencumbered software released into the public domain.
  */
-(function(global) {
+(function (global) {
   'use strict';
 
   const noop = function () {};
-  const DEFAULT_CONCURRENT = 5;
-  const DEFAULT_DELAY = 0; // Using 0 to prevent locking up a/the thread
-  const DEFAULT_PROMISE = Promise; // Using native promises
+  const defaults = {
+    concurrent: 5,
+    delay: 0, // Using 0 to prevent locking up the thread
+    Promise: Promise, // "Native" promises
+  };
 
   const setProperty = (obj, property, getter) => {
     Object.defineProperty(obj, property, { get: getter });
@@ -26,47 +27,39 @@
    */
   class ProcessQueue {
     /**
-     * @param {Function} processFn - function that will process each item
-     * @param {Array} [queue=[]] - may contain any type, items processed with processFn
-     * @param {Object} [options={}]
-     * @param {Boolean} [options.autostart=false] - autostart on construction
-     * @param {Number} [options.concurrent=5] - maximum number of concurrent consumers
-     * @param {Number} [options.delay=0] - delay in milliseconds before each tick
-     * @param {Function} [options.onEmpty] - callback for the queue being empty
-     * @param {Function} [options.onError] - callback for an error encountered during processing
-     * @param {Function} [options.Promise] - optionally specify the promise constructor used
-     *
-     * @return {ProcessQueue}
+     * @param {function} processFn - The function that will process each item
+     * @param {array<*>} [queue=[]] - The queue may contain any type, items processed with processFn
+     * @param {object} [options={}]
+     * @param {boolean} [options.autostart=false] - autostart on construction
+     * @param {number} [options.concurrent=5] - maximum number of concurrent consumers
+     * @param {number} [options.delay=0] - delay in milliseconds before each tick
+     * @param {function} [options.onEmpty] - callback for the queue being empty
+     * @param {function} [options.onError] - callback for an error encountered during processing
+     * @param {function} [options.Promise] - optionally specify the promise constructor used
      */
-    constructor(processFn, queue=[], options={}) {
-      this.queue = Array.from(queue);
-
+    constructor(processFn, queue = [], options = {}) {
       this.processFn = processFn;
+      this.queue = Array.from(queue);
 
       // Number of active consumers
       this.consumers = 0;
-      this.running = false;
+      this.isRunning = false;
 
       this.options = {};
-      this.options.concurrent = options.concurrent || DEFAULT_CONCURRENT;
-      this.options.delay = options.delay || DEFAULT_DELAY;
+      this.options.concurrent = options.concurrent || defaults.concurrent;
+      this.options.delay = options.delay || defaults.delay;
       this.options.onEmpty = options.onEmpty || noop;
       this.options.onError = options.onError || noop;
-      this.options.Promise = options.Promise || DEFAULT_PROMISE;
+      this.options.Promise = options.Promise || defaults.Promise;
 
-      this.stats = {
-        completed: 0,
-        errored: 0,
-        processed: 0,
-        remaining: 0,
-        total: 0,
-      };
-
+      this.stats = {};
+      this.stats.processed = 0;
+      this.stats.errored = 0;
       setProperty(this.stats, 'completed', () => this.stats.processed + this.stats.errored);
       setProperty(this.stats, 'remaining', () => this.queue.length + this.consumers);
       setProperty(this.stats, 'total', () => this.stats.remaining + this.stats.completed);
 
-      if (options.autostart) {
+      if (options.autostart == true) {
         this.start();
       }
     }
@@ -79,7 +72,7 @@
       Array.prototype.push.apply(this.queue, Array.from(arguments));
 
       // If there are items to process and the queue has been started, continue
-      if (this.queue.length > 0 && this.running) {
+      if (this.queue.length > 0 && this.isRunning) {
         this.start();
       }
     }
@@ -92,7 +85,7 @@
       Array.prototype.unshift.apply(this.queue, Array.from(arguments));
 
       // If there are items to process and the queue has been started, continue
-      if (this.queue.length > 0 && this.running) {
+      if (this.queue.length > 0 && this.isRunning) {
         this.start();
       }
     }
@@ -102,10 +95,10 @@
      * items in the queue and max number of concurrent consumers.
      */
     start() {
-      this.running = true;
+      this.isRunning = true;
 
       // Don't bother evaluating the loop if there are no items that can start
-      if (this.queue.length === 0) { return; }
+      if (this.queue.length == 0) { return; }
 
       // The maximum number of consumers is either the maximum concurrent
       // consumers option, or if smaller, the number of items
@@ -121,7 +114,7 @@
      * from being processed.
      */
     stop() {
-      this.running = false;
+      this.isRunning = false;
     }
 
     /**
@@ -130,7 +123,7 @@
      * and then returns control to "tick"
      */
     consume() {
-      if (this.running && this.queue.length > 0) {
+      if (this.isRunning && this.queue.length > 0) {
         // Add this consumer to the total known
         this.consumers += 1;
 
@@ -187,13 +180,13 @@
       this.consumers -= 1;
 
       // If there are no consumers and nothing in the queue, call "onEmpty"
-      if (this.queue.length === 0 && this.consumers === 0) {
+      if (this.queue.length == 0 && this.consumers == 0) {
         this.options.onEmpty();
         return;
       }
 
       // If the queue is currently processing, continue with the next item
-      if (this.running && this.queue.length > 0) {
+      if (this.isRunning && this.queue.length > 0) {
         this.consume();
       }
     }
@@ -201,15 +194,14 @@
 
   // Export logic based on Scott Hamper's Cookies.js project
   // https://github.com/ScottHamper/Cookies/blob/1.2.3/src/cookies.js
-  global.ProcessQueue = global.ProcessQueue || ProcessQueue;
 
-  if (typeof define === 'function' && define.amd) {
+  if (typeof define == 'function' && define.amd) {
     // AMD support
     define(function () { return ProcessQueue; });
-  } else if (typeof exports === 'object') {
+  } else if (typeof exports == 'object') {
     // CommonJS/Node.js support
     // Support Node.js specific `module.exports` (which can be a function)
-    if (typeof module === 'object' && typeof module.exports === 'object') {
+    if (typeof module == 'object' && typeof module.exports == 'object') {
       exports = module.exports = ProcessQueue;
     }
     // But always support CommonJS module 1.1.1 spec (`exports` cannot be a function)
@@ -217,4 +209,4 @@
   } else {
     global.ProcessQueue = ProcessQueue;
   }
-}(typeof window === 'undefined' ? this : window));
+}(typeof window == 'undefined' ? this : window));

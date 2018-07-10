@@ -10,7 +10,7 @@ describe('ProcessQueue', () => {
     it('should start if the "autostart" option is truthy', () => {
       const processFn = noop;
       const processQueue = new ProcessQueue(processFn, [1, 2, 3], { autostart: true });
-      assert(processQueue.running);
+      assert(processQueue.isRunning);
     });
 
     it('should process all items in the queue', (done) => {
