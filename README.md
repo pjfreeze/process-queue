@@ -1,4 +1,4 @@
-# Process Queue
+# Queues
 
 * Great for throttling requests (e.g. a web scraper, API requests, etc.)
 * Processing a list asynchronously or synchronously
