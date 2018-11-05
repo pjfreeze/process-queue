@@ -5,7 +5,6 @@ const sinon = require('sinon');
 
 const ConcurrencyQueue = require('./../concurrency-queue.js');
 
-const noop = function () {};
 
 describe('ConcurrencyQueue#constructor', () => {
   it('should auto start by default', () => {

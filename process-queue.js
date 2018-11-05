@@ -196,8 +196,6 @@
     }
   }
 
-  // Export logic based on Scott Hamper's Cookies.js project
-  // https://github.com/ScottHamper/Cookies/blob/1.2.3/src/cookies.js
   if (typeof define == 'function' && define.amd) {
     // AMD support
     define(function () { return ProcessQueue; });

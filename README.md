@@ -1,4 +1,4 @@
-# Queues
+# PriorityQueue
 
 * Great for throttling requests (e.g. a web scraper, API requests, etc.)
 * Processing a list asynchronously or synchronously
@@ -30,8 +30,3 @@ const handle = function (item, done) {
 const queue = new ProcessQueue(handle, items, { concurrent: 2, delay: 150 });
 queue.start();
 ```
-
-## TODO
-
-- Optimize recursion of "next" calls
-- Add debug mode with logging

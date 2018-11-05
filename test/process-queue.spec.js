@@ -5,6 +5,7 @@ const sinon = require('sinon');
 
 const ProcessQueue = require('./../process-queue.js');
 
+
 const noop = function () {};
 
 describe('ProcessQueue#constructor', () => {

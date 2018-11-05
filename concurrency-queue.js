@@ -6,8 +6,6 @@
 (function (global) {
   'use strict';
 
-  const noop = function () {};
-
   /**
    * @private
    * Shorthand for defining a getter-only property
@@ -19,9 +17,8 @@
     Object.defineProperty(obj, property, { enumerable: true, get: getter });
   };
 
-
   /**
-   * A queue with minimal interface that can be used by the concurrency queue by default.
+   * A minimally implemented queue that can be used by the concurrency queue by default.
    */
   class GenericQueue {
     constructor () {
@@ -40,7 +37,6 @@
       return this._queue.shift();
     }
   }
-
 
   /**
    * A queue that enables "concurrent" processing of asynchronous tasks. Useful for abiding by
@@ -197,6 +193,7 @@
     }
 
     /**
+     * @private
      * Handles determination of when to call "idle" handler as well as when
      * to continue consuming the queue.
      */
